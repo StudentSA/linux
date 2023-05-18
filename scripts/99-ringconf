@@ -1,0 +1,51 @@
+#!/bin/sh -e
+# Script to configure rx and tx ring buffer to maximum.
+#
+
+if [ -z "$1" ]; then
+    echo "$0: called with no interface parameter" 1>&2
+    exit 1;
+fi
+
+if [ "$2" = "up" ]; then
+    logger -s "interface $1 is now up, getting current ring buffer sizes"
+
+    #Test if ethtool command exists and interface supports ring buffers
+    ethtool -g $1 > /dev/null
+    result=$?
+
+    if [ ${result} -ne 0 ]; then
+        logger -s "Interface does not support ring buffer or ethtool not installed?"
+        exit 2;
+    fi
+
+    #setup via ethtool
+    ethtool_params=$(ethtool -g $1)
+    max_rx_ring=$(echo "${ethtool_params}" | grep -A4 'Pre-set maximums'| grep 'RX:' | sed -n "s/^RX:\s*\([0-9]*\)$/\1/p")
+    cur_rx_ring=$(echo "${ethtool_params}" | grep -A4 'Current hardware settings'| grep 'RX:' | sed -n "s/^RX:\s*\([0-9]*\)$/\1/p")
+
+    max_tx_ring=$(echo "${ethtool_params}" | grep -A4 'Pre-set maximums'| grep 'TX:' | sed -n "s/^TX:\s*\([0-9]*\)$/\1/p")
+    cur_tx_ring=$(echo "${ethtool_params}" | grep -A4 'Current hardware settings'| grep 'TX:' | sed -n "s/^TX:\s*\([0-9]*\)$/\1/p")
+
+    logger -s "interface $1 Ring currently set RX:${cur_rx_ring}/TX:${cur_tx_ring}, Max supported valuew RX:${max_rx_ring}/TX:${max_tx_ring}"
+
+    #check if RX max > current
+    if [ "${cur_rx_ring}" -lt "${max_rx_ring}" ]; then
+        #increase the RX ring value
+        logger -s "Increasing RX ring for $1 from ${cur_rx_ring} to ${max_rx_ring}"
+        ethtool -G $1 rx ${max_rx_ring}
+    else
+        logger -s "no action taken as current RX ring buffer is alread at max"
+    fi
+
+    #check if TX max > current
+    if [ "${cur_tx_ring}" -lt "${max_tx_ring}" ]; then
+        #increase the TX ring value
+        logger -s "Increasing TX ring for $1 from ${cur_tx_ring} to ${max_tx_ring}"
+        ethtool -G $1 tx ${max_rx_ring}
+    else
+        logger -s "no action taken as current TX ring buffer is alread at max"
+    fi
+
+    exit 0;
+fi
