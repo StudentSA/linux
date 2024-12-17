@@ -42,7 +42,7 @@ if [ "$2" = "up" ]; then
     if [ "${cur_tx_ring}" -lt "${max_tx_ring}" ]; then
         #increase the TX ring value
         logger -s "Increasing TX ring for $1 from ${cur_tx_ring} to ${max_tx_ring}"
-        ethtool -G $1 tx ${max_rx_ring}
+        ethtool -G $1 tx ${max_tx_ring}
     else
         logger -s "no action taken as current TX ring buffer is alread at max"
     fi
